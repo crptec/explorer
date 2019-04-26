@@ -14,11 +14,25 @@ var express = require('express')
 
 var app = express();
 
+const NodeCache = require('node-cache');
+const ttl = 60 * 60 * 1; // cache for 1 Hour
+const mycache = new NodeCache({stdTTL: ttl, checkperiod: ttl * 0.2, useClones: false});
+const getCacheValue = (key, storeFunction) => {
+  const value = mycache.get(key);
+  if (value) {
+    return Promise.resolve(value);
+  }
+
+  return storeFunction().then((result) => {
+    mycache.set(key, result);
+    return result;
+  });
+}
 // bitcoinapi
 bitcoinapi.setWalletDetails(settings.wallet);
 if (settings.heavy != true) {
   bitcoinapi.setAccess('only', ['getinfo', 'getnetworkhashps', 'getmininginfo','getdifficulty', 'getconnectioncount',
-    'getblockcount', 'getblockhash', 'getblock', 'getrawtransaction', 'getpeerinfo', 'gettxoutsetinfo', 'gettermdepositstats']);
+    'getblockcount', 'getblockhash', 'getblock', 'getrawtransaction', 'getpeerinfo', 'gettxoutsetinfo', 'gettermdepositstats', 'masternodelist']);
 } else {
   // enable additional heavy api calls
   /*
@@ -109,6 +123,91 @@ app.use('/ext/connections', function(req,res){
 app.use('/ext/gettermdepositstats', function(req,res){
   db.get_termdepositstats(function(termdepositstats){
     res.send({"nAddress": termdepositstats[0].term_deposit_wallets, "nTimeLockedTxs": termdepositstats[0].term_deposit_txs, "nTotalTimeLockedValue": termdepositstats[0].term_deposit_total});
+  });
+});
+app.use('/ext/pool-stats', async function (req, res) {
+  const axios = require('axios');
+  const moment = require('moment');
+  const now = moment().unix();
+  async function getPoolStats(url) {
+    return getCacheValue(url, async () => {
+      return await axios.get(url);
+    }).then((result) => {
+      return result
+    })
+  }
+
+  const getHashrate = (data, solo) => {
+    if (undefined == data.network_hashrate) {
+      return !solo ? (data.hashrate/1000000000).toFixed(2)+ ' GH/s' :  (data.hashrate_solo/1000000000).toFixed(2) + ' GH/s';
+    } else {
+      return !solo ? (data.hashrate/1000000000).toFixed(2)+' GH/s ('+(data.hashrate/data.network_hashrate*100).toFixed(2)+'%)' : (data.hashrate_solo/1000000000).toFixed(2)+' GH/s ('+(data.hashrate_solo/data.network_hashrate*100).toFixed(2)+'%)';
+    }
+  }
+  const mapData = (data, solo=false) => {
+    return {
+      "pool": data.name,
+      "block_height": data.height,
+      "workers": !solo ? data.workers : data.workers_solo,
+      "blocks_in_24h": !solo ? data['24h_blocks'] : data['24h_blocks_solo'],
+      "last_block": !solo ? moment().subtract(data.timesincelast, 'seconds').fromNow() : moment().subtract(data.timesincelast_solo, 'seconds').fromNow(),
+      "pool_hashrate": getHashrate(data, solo),
+      "history": 100
+    }
+  }
+
+
+  const data = [];
+  for(const poolName in settings.pools) {
+    const solo = !!settings.pools[poolName].solo ? true : false;
+    const response = await getPoolStats(settings.pools[poolName].api)
+    if (!!response.data) {
+      const poolStats = await mapData(response.data.SUQA, solo);
+      data.push({
+        ...poolStats,
+        homepage: settings.pools[poolName].homepage,
+        pool_name: settings.pools[poolName].pool_name
+      });
+    }
+  };
+
+  res.send({
+    data: data
+  });
+});
+app.use('/ext/masternodelist', async function (req, res) {
+  const axios = require('axios');
+  const moment = require('moment');
+  const now = moment().unix();
+  const base_url = 'http://127.0.0.1:' + settings.port + '/api/';
+  const NodeCache = require('node-cache');
+  const ttl = 60 * 60 * 1; // cache for 1 Hour
+  const mycache = new NodeCache({stdTTL: ttl, checkperiod: ttl * 0.2, useClones: false});
+  const getCacheValue = (key, storeFunction) => {
+    const value = mycache.get(key);
+    if (value) {
+      return Promise.resolve(value);
+    }
+
+    return storeFunction().then((result) => {
+      mycache.set(key, result);
+      return result;
+    });
+  }
+
+
+
+  async function getMasternodes() {
+    return axios.get(base_url + 'masternodelist?mode=info');
+  }
+  const response = await getCacheValue('masternodes', () => {
+    return getMasternodes();
+  }).then((result) => {
+    return result
+  })
+
+  res.send({
+    data: response.data
   });
 });
 
