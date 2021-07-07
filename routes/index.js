@@ -90,8 +90,12 @@ function route_get_tx(res, txid) {
   }
 }
 
+function route_get_dashboard(res, error) {
+  res.render('dashboard', { active: 'dashboard', error: error, warning: null});
+}
+
 function route_get_index(res, error) {
-  res.render('index', { active: 'home', error: error, warning: null});
+  res.render('index', { active: 'index', error: error, warning: null});
 }
 
 function route_get_address(res, hash, count) {
@@ -125,7 +129,7 @@ function route_get_address(res, hash, count) {
 
 /* GET home page. */
 router.get('/', function(req, res) {
-  route_get_index(res, null);
+  route_get_dashboard(res, null);
 });
 
 router.get('/info', function(req, res) {
@@ -144,7 +148,7 @@ router.get('/gettermdepositstats', function(req, res) {
 		console.warn('No stats file found. Continuing using defaults!');
 	}
 
-	var termdepositstats = {"nAddress": 0, "nTimeLockedTxs": 0, "nTotalTimeLockedValue": 0};
+	var termdepositstats = {"nAddress": 0, "nTimeLockedTxs": 0, "nTotalTimeLockedValue": 0, "nBurnFee": 0, "nBurnNode": 0};
 	try {
 		if(termdepositstatsStr) {
 			termdepositstatsStr = jsonminify(termdepositstatsStr).replace(",]","]").replace(",}","}");
@@ -152,6 +156,8 @@ router.get('/gettermdepositstats', function(req, res) {
 			res.send({ 	nAddress: termdepositstats.nAddress,
 					nTimeLockedTxs: termdepositstats.nTimeLockedTxs,
 					nTotalTimeLockedValue: termdepositstats.nTotalTimeLockedValue,
+					nBurnFee: termdepositstats.nBurnFee,
+					nBurnNode: termdepositstats.nBurnNode,
 					distribution: termdepositstats.distribution
 			});
 		}else{
@@ -162,14 +168,149 @@ router.get('/gettermdepositstats', function(req, res) {
 	}
 });
 
+router.get('/summary', function(req, res) {
+    var summarystatsFilename = "summary.json";
+	summarystatsFilename = "./" + summarystatsFilename;
+
+	var summarystatsStr;
+	try{
+		//read the settings sync
+		summarystatsStr = fs.readFileSync(summarystatsFilename).toString();
+	} catch(e){
+		console.warn('No stats file found. Continuing using defaults!');
+	}
+
+	var summarystats = {"difficulty":0,
+						"difficultyHybrid":"",
+						"supply":0,
+						"hashrate":"0.0",
+						"lastPrice":0,
+						"connections":0,
+						"blockcount":0,
+						"explorerHeight": 0,
+						"explorerAddresses": 0,
+						"explorerActiveAddresses": 0,
+						"explorerTop10": 0,
+						"explorerTop50": 0,
+						"burnFee":0,
+						"burnNode":0};
+	try {
+		if(summarystatsStr) {
+			summarystatsStr = jsonminify(summarystatsStr).replace(",]","]").replace(",}","}");
+			summarystats = JSON.parse(summarystatsStr);
+			res.send({
+					difficulty: summarystats.data[0].difficulty,
+					difficultyHybrid: summarystats.data[0].difficultyHybrid,
+					supply: summarystats.data[0].supply - summarystats.data[0].burnFee - summarystats.data[0].burnNode,
+					hashrate: summarystats.data[0].hashrate,
+					lastPrice: summarystats.data[0].lastPrice,
+					connections: summarystats.data[0].connections,
+					blockcount: summarystats.data[0].blockcount,
+					explorerHeight: summarystats.data[0].explorerHeight,
+					explorerAddresses: summarystats.data[0].explorerAddresses,
+					explorerActiveAddresses: summarystats.data[0].explorerActiveAddresses,
+					explorerTop10: summarystats.data[0].explorerTop10,
+					explorerTop50: summarystats.data[0].explorerTop50,
+					burnFee: summarystats.data[0].burnFee,
+					burnNode: summarystats.data[0].burnNode
+			});
+		}else{
+			res.send(summarystats);
+		}
+	}catch(e){
+		res.send(summarystats);
+	}
+});
+
+router.get('/getmoneysupply', function(req, res) {
+    var summarystatsFilename = "summary.json";
+	summarystatsFilename = "./" + summarystatsFilename;
+
+	var summarystatsStr;
+	try{
+		//read the settings sync
+		summarystatsStr = fs.readFileSync(summarystatsFilename).toString();
+	} catch(e){
+		console.warn('No stats file found. Continuing using defaults!');
+	}
+
+	var summarystats = {"supply":0,
+						"burnFee":0,
+						"burnNode":0};
+	try {
+		if(summarystatsStr) {
+			summarystatsStr = jsonminify(summarystatsStr).replace(",]","]").replace(",}","}");
+			summarystats = JSON.parse(summarystatsStr);
+			res.send( ' ' + (summarystats.data[0].supply - summarystats.data[0].burnFee - summarystats.data[0].burnNode));
+		}else{
+			res.send(' ' + 0);
+		}
+	}catch(e){
+		res.send(' ' + 0);
+	}
+});
+
+router.get('/nodelist', function(req, res) {
+    var nodelistFilename = "infinitynode.json";
+	nodelistFilename = "./" + nodelistFilename;
+
+	var nodeliststatsStr;
+	try{
+		//read the settings sync
+		nodeliststatsStr = fs.readFileSync(nodelistFilename).toString();
+	} catch(e){
+		console.warn('No stats file found. Continuing using defaults!');
+	}
+
+	var nodeliststats = {"address":""};
+	try {
+		if(nodeliststatsStr) {
+			nodeliststatsStr = jsonminify(nodeliststatsStr).replace(",]","]").replace(",}","}");
+			nodeliststats = JSON.parse(nodeliststatsStr);
+			res.send(nodeliststats);
+		}else{
+			res.send(nodeliststats);
+		}
+	}catch(e){
+		res.send(nodeliststats);
+	}
+});
+
+router.get('/poollist', function(req, res) {
+	const data = [];
+	db.get_pools(function(pools){
+		if (pools){
+			var count = pools.length;
+			lib.syncLoop(count, function (loop) {
+				var i = loop.iteration();
+				data.push({
+					createdAt: pools[i].createdAt,
+					pool_name: pools[i].pool_name,
+					homepage: pools[i].homepage,
+					block_height: pools[i].block_height,
+					workers: pools[i].workers,
+					blocks_in_24h: pools[i].blocks_in_24h,
+					last_block: pools[i].last_block,
+					pool_hashrate: pools[i].pool_hashrate
+				});
+ 				loop.next();
+			}, function(){
+				res.send({data: data});
+			});
+		} else {
+			route_get_index(res, 'Pool list not found in database');
+		}
+	});
+});
+
 router.get('/markets/:market', function(req, res) {
   var market = req.params['market'];
   if (settings.markets.enabled.indexOf(market) != -1) {
     db.get_market(market, function(data) {
-      /*if (market === 'bittrex') {
+      /*if (market === 'tradeogre') {
         data = JSON.parse(data);
-      }*/
-      console.log(data);
+      }
+      console.log(data);*/
       res.render('./markets/' + market, {
         active: 'markets',
         marketdata: {
@@ -226,9 +367,12 @@ router.get('/network', function(req, res) {
   res.render('network', {active: 'network'});
 });
 
+router.get('/dashboard', function(req, res) {
+  res.render('dashboard', {active: 'dashboard'});
+});
+
 router.get('/reward', function(req, res){
   //db.get_stats(settings.coin, function (stats) {
-    console.log(stats);
     db.get_heavy(settings.coin, function (heavy) {
       //heavy = heavy;
       var votes = heavy.votes;
@@ -330,18 +474,27 @@ router.get('/ext/summary', function(req, res) {
       lib.get_connectioncount(function(connections){
         lib.get_blockcount(function(blockcount) {
           db.get_stats(settings.coin, function (stats) {
-            if (hashrate == 'There was an error. Check your console.') {
-              hashrate = 0;
-            }
-            res.send({ data: [{
-              difficulty: difficulty,
-              difficultyHybrid: difficultyHybrid,
-              supply: stats.supply,
-              hashrate: hashrate,
-              lastPrice: stats.last_price,
-              connections: connections,
-              blockcount: blockcount
-            }]});
+			lib.get_gettermdepositstats(function(termdepositstats){
+				if (hashrate == 'There was an error. Check your console.') {
+				  hashrate = 0;
+				}
+				res.send({ data: [{
+				  difficulty: difficulty,
+				  difficultyHybrid: difficultyHybrid,
+				  supply: stats.supply,
+				  hashrate: hashrate,
+				  lastPrice: stats.last_price,
+				  connections: connections,
+				  blockcount: blockcount,
+                  explorerHeight: stats.last,
+                  explorerAddresses: stats.addresses,
+                  explorerActiveAddresses: stats.active_addresses,
+                  explorerTop10: stats.top10,
+                  explorerTop50: stats.top50,
+                  burnFee: termdepositstats.nBurnFee,
+                  burnNode: termdepositstats.nBurnNode
+				}]});
+		  	});
           });
         });
       });
@@ -352,8 +505,8 @@ router.get('/pool-stats', function(req, res) {
   res.render('poolstats', {});
 });
 
-router.get('/masternodes', function(req, res) {
+router.get('/infinitynodes', function(req, res) {
   const moment = require('moment');
-  res.render('masternodes', {moment: moment});
+  res.render('infinitynodes', {moment: moment});
 });
 module.exports = router;

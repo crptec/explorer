@@ -1,7 +1,9 @@
 body {
   padding: 80px 40px;
   font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
- /* background-image: url('/images/background2.png');*/
+   background-image: url('/images/bg.png');
+   background-size:cover;
+   /*background-image: linear-gradient(to bottom, #051937, #102346, #1c2c56, #283766, #354176);*/
 }
 
 #index-search {
@@ -10,7 +12,8 @@ body {
 
 .nav-search input {
 	width: 400px !important;
-	margin-right: 5px;	
+	margin-right: 5px;
+  
 }
 
 .view_tx {
@@ -49,9 +52,12 @@ body {
 /* datatable tweaks */
 table {
 	width: 100% !important;
+	
+	
 }
 .dataTables_info, .dataTables_length {
 	padding-left: 10px;
+	
 }
 
 .dataTables_info {
@@ -68,6 +74,7 @@ table {
 
 .tab-pane {
 	margin-top: 5px;
+	
 }
 
 table a:not(.btn),.table a:not(.btn){
@@ -76,6 +83,7 @@ table a:not(.btn),.table a:not(.btn){
 
 tr {
 	width: 100%;
+	
 }
 
 .footer-padding {
@@ -154,7 +162,7 @@ tr {
 }
 .qrcode {
 	position: absolute;
-	top: 65px;
+	top: 240px;
 	right: 15px;
 }
 
@@ -164,3 +172,20 @@ tr {
 	bottom: 0px;
 }
 
+#barExpiredHeight .jqplot-point-label {
+  border: 1.5px solid #aaaaaa;
+  padding: 1px 3px;
+  background-color: transparent;
+}
+
+#barTxStatsValue .jqplot-point-label {
+  border: 1.5px solid #aaaaaa;
+  padding: 1px 3px;
+  background-color: transparent;
+}
+
+#barTxStatsNumber .jqplot-point-label {
+  border: 1.5px solid #aaaaaa;
+  padding: 1px 3px;
+  background-color: transparent;
+}

@@ -1,0 +1,403 @@
+extends layout
+
+block content
+  script.
+      $(document).ready(function(){
+        $('##{active}').addClass('active');
+        function update_stats(){
+          var supply = 0;
+          var burnt = 0;
+          var hashrate = 0;
+          $.ajax({url: '/summary', success: function(json){
+            $("#supply").text(json.supply);
+            supply = json.supply;
+            $("#difficulty").text(json.difficulty);
+            $("#difficultyHybrid").text(json.difficultyHybrid);
+            $("#hashrate").text(json.hashrate);
+            hashrate = json.hashrate;
+            $("#lastPrice").text(json.lastPrice.toFixed(8));
+            $("#lblConnections").text(json.connections + ' connections');
+            $("#lblBlockcount").text(json.explorerHeight + ' / ' + json.blockcount);
+            $("#lblX1").text(' ');
+            $("#burnfee").text(json.burnFee);
+            $("#burnnode").text(json.burnNode);
+            $("#burntotal").text(json.burnFee + json.burnNode);
+            $("#explorerAddresses").text(json.explorerAddresses);
+            $("#explorerActiveAddresses").text(json.explorerActiveAddresses);
+            $("#explorerTop10").text(json.explorerTop10);
+            $("#explorerTop50").text(json.explorerTop50);
+            $.ajax({url: '/poollist', success: function(json){
+              var totalKnownHash = 0;
+              for (var i = 0; i < json.data.length; i++) {
+                totalKnownHash = totalKnownHash + json.data[i]['pool_hashrate'];
+              }
+              var KnownHash = (totalKnownHash/1000000000).toFixed(2);
+              $("#hashrate").text(KnownHash+ ' / ' + hashrate + '');
+            }});
+            $.ajax({url: '/ext/txstats/'+json.blockcount, success: function(json){
+                 var nTx=[];
+                 var vTx=[];
+                 var ticks=[];
+                 const keys = Object.keys(json.data);
+                 for (var i = 0; i < keys.length; i++) {
+                   nTx.push(json.data[i].count);
+                   vTx.push(json.data[i].total / 100000000);
+                   ticks.push(json.data[i].range);
+                 }
+                 $("#barTxStatsValue").text('');
+                 plot1 = $.jqplot('barTxStatsValue', [vTx], {
+                   title: 'Transaction values (SIN) per day',
+                   seriesColors:['#FF3333'],
+                   grid: {drawGridlines: false, borderColor: 'transparent', shadow: false, drawBorder: false, shadowColor: 'transparent'},
+                   seriesDefaults: {
+                     renderer:$.jqplot.BarRenderer
+                   },
+                   series:[
+                     {pointLabels:{
+                       show: true,
+                       labels:vTx
+                   }}],
+                   axes: {
+                     xaxis: {
+                       renderer: $.jqplot.CategoryAxisRenderer,
+                       ticks: ticks
+                     }
+                   }
+                 });
+                 $("#barTxStatsNumber").text('');
+                 plot3 = $.jqplot('barTxStatsNumber', [nTx], {
+                   title: 'Transactions per day',
+                   seriesColors:['#73C774'],
+                   grid: {drawGridlines: false, borderColor: 'transparent', shadow: false, drawBorder: false, shadowColor: 'transparent'},
+                   seriesDefaults: {
+                     renderer:$.jqplot.BarRenderer
+                   },
+                   series:[
+                     {pointLabels:{
+                       show: true,
+                       labels:nTx
+                   }}],
+                   axes: {
+                     xaxis: {
+                       renderer: $.jqplot.CategoryAxisRenderer,
+                       ticks: ticks
+                     }
+                   }
+                 });
+             }});
+          }});
+          $.ajax({url: '/nodelist', success: function ( json ) {
+              const keys = Object.keys(json);
+              var big = 0, big_enable = 0, big_disable = 0, mid = 0, mid_enable = 0, mid_disable = 0, lil = 0, lil_enable = 0, lil_disable = 0;
+              var reward_lil = 0, reward_mid = 0, reward_big = 0;
+              var burnAmount_lil = 0, burnAmount_mid = 0, burnAmount_big = 0;
+              for (var i = 0; i < keys.length; i++) {
+                const line = {}
+                line['address'] = keys[i];
+                const lineData = json[keys[i]].split(" ");
+                const noEmptyData = [];
+                for (var j = 0; j < lineData.length; j++) {
+                  if (lineData[j].length !== 0) {
+                    noEmptyData.push(lineData[j])
+                  }
+                }
+                line['status'] = noEmptyData[0].replace(/_/g, ' ').toLowerCase()
+                if (noEmptyData[8] == 1) { 
+                  lil++;
+                  reward_lil = noEmptyData[9];
+                  burnAmount_lil = noEmptyData[10];
+                  if (line['status'] == 'enabled') { lil_enable++; } else { lil_disable++; }
+                }
+                if (noEmptyData[8] == 5) { 
+                  mid++; 
+                  reward_mid = noEmptyData[9];
+                  burnAmount_mid = noEmptyData[10];
+                  if (line['status'] == 'enabled') { mid_enable++; } else { mid_disable++; }
+                }
+                if (noEmptyData[8] == 10) { 
+                  big++;
+                  reward_big = noEmptyData[9];
+                  burnAmount_big = noEmptyData[10];
+                  if (line['status'] == 'enabled') { big_enable++; } else { big_disable++; }
+                }
+              }
+              var roi_big = "UNKNOWN"; if(reward_big != 0) roi_big = "" + burnAmount_big / ((720 / big_enable) * reward_big);
+              var roi_mid = "UNKNOWN"; if(reward_mid != 0) roi_mid = "" + burnAmount_mid / ((720 / mid_enable) * reward_mid);
+              var roi_lil = "UNKNOWN"; if(reward_lil != 0) roi_lil = "" + burnAmount_lil / ((720 / lil_enable) * reward_lil);
+              $("#n_big").text(big + " (" + big_enable + "/" + big_disable + ") / ROI: " + Math.floor(roi_big) + " days");
+              $("#n_mid").text(mid + " (" + mid_enable + "/" + mid_disable + ") / ROI: " + Math.floor(roi_mid) + " days");
+              $("#n_lil").text(lil + " (" + lil_enable + "/" + lil_disable + ") / ROI: " + Math.floor(roi_lil) + " days");
+              $("#n_totalnode").text(lil + mid + big + " nodes");
+          }});
+        };
+        setInterval( function() {
+          update_stats();
+        }, 60000);
+        update_stats();
+      }); 
+  .col-md-12(style="margin-bottom: 4%")
+    .row.text-center
+       .col-md-3
+          .panel.panel-default(style='background-color:transparent;')
+            .panel-heading
+              strong #{settings.locale.network}
+            .panel-body
+              table.table.table-bordered.summary-table(style='background-color: rgba(78, 93, 108, 0.1);border-radius:10px;font-weight:bold;color:white;border:none !important;')
+                tbody
+                  tr
+                    td
+                      if settings.nethash_units == 'K'
+                        span #{settings.locale.hashrate} (KH/s)
+                      else if settings.nethash_units == 'M'
+                        span #{settings.locale.hashrate} (MH/s)
+                      else if settings.nethash_units == 'G'
+                        span #{settings.locale.hashrate} (GH/s)
+                      else if settings.nethash_units == 'T'
+                        span #{settings.locale.hashrate} (TH/s)
+                      else if settings.nethash_units == 'P'
+                        span #{settings.locale.hashrate} (PH/s)
+                      else if settings.nethash_units == 'H'
+                        span #{settings.locale.hashrate} (H/s)
+                    td
+                      if settings.index.difficulty == 'Hybrid'
+                        span#hashrate -
+                        span#lblX1
+                      else
+                        span#hashrate -
+                  tr
+                    td
+                      span #{settings.locale.difficulty}
+                    td
+                      span#difficulty -
+                  tr
+                    td
+                      span #{settings.locale.mkt_last}
+                    td
+                      span#lastPrice -
+                  tr
+                    td
+                      span #{settings.locale.height}
+                    td
+                      span#lblBlockcount -
+       .col-md-3
+          .panel.panel-default(style='background-color:transparent;')
+            .panel-heading
+              strong #{settings.locale.addresses_stat}
+            .panel-body
+              table.table.table-bordered.summary-table(style="background:transparent;")
+                tbody
+                  tr
+                    td
+                        span #{settings.locale.nb_addresses}
+                    td
+                        span#explorerAddresses -
+                  tr
+                    td
+                      span #{settings.locale.active_addresses}
+                    td
+                      span#explorerActiveAddresses -
+                  tr
+                    td
+                      span #{settings.locale.top10_addresses}
+                    td
+                      span#explorerTop10 -
+                  tr
+                    td
+                      span #{settings.locale.top50_addresses}
+                    td
+                      span#explorerTop50 -
+       .col-md-3
+          .panel.panel-default(style='background-color:transparent;')
+            .panel-heading
+              strong #{settings.locale.burn_stat}
+            .panel-body
+              table.table.table-bordered.summary-table(style='background-color: rgba(78, 93, 108, 0.1);border-radius:10px;font-weight:bold;color:white;border:none !important;')
+                tbody
+                  tr
+                    td
+                        span #{settings.locale.burn_fee}
+                    td
+                        span#burnfee -
+                  tr
+                    td
+                      span #{settings.locale.burn_node}
+                    td
+                      span#burnnode -
+                  tr
+                    td
+                      span #{settings.locale.burn_total}
+                    td
+                      span#burntotal -
+                  tr
+                    td
+                      span #{settings.locale.ex_supply}
+                    td
+                      span#supply -
+       .col-md-3
+          .panel.panel-default(style='background-color:transparent')
+            .panel-heading
+              strong #{settings.locale.infinitynode_stat}
+            .panel-body
+              table.table.table-bordered.summary-table(style='background-color: rgba(78, 93, 108, 0.1);border-radius:10px;font-weight:bold;color:white;border:none !important;')
+                tbody
+                  tr  
+                    td
+                        span(style='color:#ffd700')  #{settings.locale.infinitynode_n_big}
+                    td
+                        span(style='color:#ffd700')#n_big - 
+                  tr
+                    td
+                      span(style='color:#c0c0c0') #{settings.locale.infinitynode_n_mid}
+                    td
+                      span(style='color:#c0c0c0')#n_mid -
+                  tr
+                    td
+                      span(style='color:#cd7f32') #{settings.locale.infinitynode_n_lil}
+                    td
+                      span(style='color:#cd7f32')#n_lil -
+                  tr
+                    td
+                      span(style='font-size:16px') #{settings.locale.total}
+                    td
+                      span(style='font-size:16px')#n_totalnode -
+    .row.text-center(style='margin-bottom:15px;')
+       .col-md-6(style="margin-bottom: 4%; float: left; width: 48%; valign: bottom;padding: 10px 10px 10px 10px;")
+         div(style='background-color: rgba(78, 93, 108, 0.1);border-radius:10px;font-weight:bold;color:white;border:none !important;')#barExpiredHeight
+         br
+         div(style='background-color: rgba(78, 93, 108, 0.1);border-radius:10px;font-weight:bold;color:white;border:none !important;')#barTxStatsValue
+         br
+         div(style='background-color: rgba(78, 93, 108, 0.1);border-radius:10px;font-weight:bold;color:white;border:none !important;')#barTxStatsNumber
+       .col-md-6(style="margin-bottom: 4%; float: right; width: 48%;padding: 10px 10px 10px 10px;")
+        .row.text-center
+           link(rel='stylesheet', href='/stylesheets/assets/helpers/animate.css')
+           link(rel='stylesheet', href='/stylesheets/assets/helpers/backgrounds.css')
+           link(rel='stylesheet', href='/stylesheets/assets/helpers/boilerplate.css')
+           link(rel='stylesheet', href='/stylesheets/assets/helpers/border-radius.css')
+           link(rel='stylesheet', href='/stylesheets/assets/helpers/grid.css')
+           link(rel='stylesheet', href='/stylesheets/assets/helpers/page-transitions.css')
+           link(rel='stylesheet', href='/stylesheets/assets/helpers/spacing.css')
+           link(rel='stylesheet', href='/stylesheets/assets/helpers/typography.css')
+           link(rel='stylesheet', href='/stylesheets/assets/helpers/utils.css')
+           link(rel='stylesheet', href='/stylesheets/assets/helpers/colors.css')
+           link(rel='stylesheet', href='/stylesheets/assets/frontend-elements/footer.css')
+           link(rel='stylesheet', href='/stylesheets/assets/snippets/todo.css')
+           link(rel='stylesheet', href='/stylesheets/assets/snippets/user-profile.css')
+           link(rel='stylesheet', href='/stylesheets/assets/snippets/mobile-navigation.css')
+           link(rel='stylesheet', href='/stylesheets/assets/themes/frontend/layout.css')
+           link(rel='stylesheet', href='/stylesheets/assets/themes/frontend/color-schemes/default.css')
+           link(rel='stylesheet', href='/stylesheets/assets/themes/components/default.css')
+           link(rel='stylesheet', href='/stylesheets/assets/themes/components/border-radius.css')
+           link(rel='stylesheet', href='/stylesheets/assets/helpers/responsive-elements.css')
+           link(rel='stylesheet', href='/stylesheets/assets/helpers/frontend-responsive.css')
+           script(src='https://d3js.org/d3.v3.min.js')
+           script(src='//d3js.org/topojson.v1.min.js')
+           script(src='//d3js.org/d3.geo.projection.v0.min.js')
+           script(src='//d3js.org/queue.v1.min.js')
+           div.row(id="mapcontainer" align="center" style="background-color: rgba(78, 93, 108, 0.1);border-radius:10px;font-weight:bold;color:white;border:none !important;")
+           link(rel='stylesheet', href='/stylesheets/worldmap.v1.css')
+           script(src='/javascripts/worldmap.v1.js')
+           script(src='/javascripts/jqplot.pointLabels.js')
+           script.
+             var createmap = new Worldmap({
+               elementid: "#mapcontainer",
+               width: $( window ).width()/2 - $( window ).width()/20,
+               height: 400,
+               mapstyle: {
+                 ocean: "transparent",
+                 region: "#485563",
+                 border : "white"
+               },
+               project: {  
+                 name: "Aitoff" 
+               },
+               showtable:false,
+               editpanel:false,
+               data: [
+                   //{name: 'Bubble 1', coordinates: [21.32,  -7.32], size: 45, color: 'red'},
+                   //{name: 'Bubble 4', coordinates: [-31.32, 23.32], size: 5, color: 'black'}
+               ],
+               plugin: "bubble",
+               defaultfill: "steelblue",
+               zoomable: false,
+               defaultsize: 30,
+             });
+             var randomScalingFactor = function() {
+               return Math.round(Math.random() * 100);
+             };
+             var config = {
+               type: 'pie',
+               data: {
+                 datasets: [{
+                   data: [
+                     randomScalingFactor(),
+                     randomScalingFactor(),
+                     randomScalingFactor(),
+                     randomScalingFactor(),
+                     randomScalingFactor(),
+                   ],
+                   backgroundColor: [
+                   ],
+                   label: 'Dataset 1'
+                 }],
+                 labels: [
+                   'Red',
+                   'Orange',
+                   'Yellow',
+                   'Green',
+                   'Blue'
+                 ]
+               },
+               options: {
+                 responsive: true
+               }
+             };
+             $(document).ready(function(){
+               $('#playeranim').css('display', 'none');
+               //expire height
+               $.ajax({url: '/ext/nodeexpire', success: function(json){
+                 var s=[];
+                 var ticks=[];
+                 const keys = Object.keys(json.data);
+                 for (var i = 0; i < keys.length; i++) {
+                   s.push(json.data[i].number);
+                   ticks.push(json.data[i].range);
+                 }
+                 plot2 = $.jqplot('barExpiredHeight', [s], {
+                   title: 'Infinity node expire height / 2 Weeks creation',
+                   seriesColors:['#FF8204'],
+                   grid: {drawGridlines: false, borderColor: 'transparent', shadow: false, drawBorder: false, shadowColor: 'transparent'},
+                   seriesDefaults: {
+                     renderer:$.jqplot.BarRenderer
+                   },
+                   series:[
+                     {pointLabels:{
+                       show: true,
+                       labels:s
+                   }}],
+                   axes: {
+                     xaxis: {
+                       renderer: $.jqplot.CategoryAxisRenderer,
+                       ticks: ticks
+                     }
+                   }
+                 });
+               }});
+             });
+             //worldmap
+             setTimeout(function(){
+               $.ajax({url: '/ext/dashboard', success: function(json){
+                 const data = [];
+                 const keys = Object.keys(json.data);
+                 for (var i = 0; i < keys.length; i++) {
+                   if (json.data[i].location == "SG") json.data[i].location = "MY";
+                   const item = {};
+                     item["location"] = json.data[i].location,
+                     item["LIL"] = ""+json.data[i].lil,
+                     item["MID"] = ""+json.data[i].mid,
+                     item["BIG"] = ""+json.data[i].big,
+                   data.push(item)
+                 }
+                 createmap.update(data, "barchart");
+               }})
+             }, 4000);
+

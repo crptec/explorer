@@ -9,6 +9,7 @@ var express = require('express')
   , routes = require('./routes/index')
   , lib = require('./lib/explorer')
   , db = require('./lib/database')
+  , Nodes = require('./models/nodes')
   , locale = require('./lib/locale')
   , request = require('request');
 
@@ -32,7 +33,7 @@ const getCacheValue = (key, storeFunction) => {
 bitcoinapi.setWalletDetails(settings.wallet);
 if (settings.heavy != true) {
   bitcoinapi.setAccess('only', ['getinfo', 'getnetworkhashps', 'getmininginfo','getdifficulty', 'getconnectioncount',
-    'getblockcount', 'getblockhash', 'getblock', 'getrawtransaction', 'getpeerinfo', 'gettxoutsetinfo', 'gettermdepositstats', 'masternodelist']);
+    'getblockcount', 'getblockhash', 'getblock', 'getrawtransaction', 'getpeerinfo', 'gettxoutsetinfo', 'masternodelist']);
 } else {
   // enable additional heavy api calls
   /*
@@ -49,7 +50,7 @@ if (settings.heavy != true) {
   bitcoinapi.setAccess('only', ['getinfo', 'getstakinginfo', 'getnetworkhashps', 'getdifficulty', 'getconnectioncount',
     'getblockcount', 'getblockhash', 'getblock', 'getrawtransaction','getmaxmoney', 'getvote',
     'getmaxvote', 'getphase', 'getreward', 'getnextrewardestimate', 'getnextrewardwhenstr',
-    'getnextrewardwhensec', 'getsupply', 'gettxoutsetinfo', 'gettermdepositstats']);
+    'getnextrewardwhensec', 'getsupply', 'gettxoutsetinfo']);
 }
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -120,6 +121,38 @@ app.use('/ext/connections', function(req,res){
   });
 });
 
+app.use('/ext/txstats/:height', function(req,res){
+  db.get_tx_stats(req.param('height'), function(txstats){
+    res.send({data: txstats});
+  });
+});
+
+app.use('/ext/addressstats', function(req,res){
+  db.get_address_stats('count', function(counts){
+    db.get_address_stats('top', function(top){
+      res.send({addresses: counts.addresses, active: counts.active_addresses, top10: top.top10, top50: top.top50});
+    });
+  });
+});
+
+app.use('/ext/dashboard', function(req,res){
+  db.get_locationnodes(function(get_locationnodes){
+    res.send({data: get_locationnodes});
+  });
+});
+
+app.use('/ext/nodelist', function(req,res){
+  db.get_nodes(function(get_nodes){
+    res.send({data: get_nodes});
+  });
+});
+
+app.use('/ext/nodeexpire', function(req,res){
+  db.get_node_expire(function(expire){
+    res.send({data: expire});
+  });
+});
+
 app.use('/ext/gettermdepositstats', function(req,res){
   db.get_termdepositstats(function(termdepositstats){
     res.send({"nAddress": termdepositstats[0].term_deposit_wallets, "nTimeLockedTxs": termdepositstats[0].term_deposit_txs, "nTotalTimeLockedValue": termdepositstats[0].term_deposit_total});
@@ -173,41 +206,6 @@ app.use('/ext/pool-stats', async function (req, res) {
 
   res.send({
     data: data
-  });
-});
-app.use('/ext/masternodelist', async function (req, res) {
-  const axios = require('axios');
-  const moment = require('moment');
-  const now = moment().unix();
-  const base_url = 'http://127.0.0.1:' + settings.port + '/api/';
-  const NodeCache = require('node-cache');
-  const ttl = 60 * 60 * 1; // cache for 1 Hour
-  const mycache = new NodeCache({stdTTL: ttl, checkperiod: ttl * 0.2, useClones: false});
-  const getCacheValue = (key, storeFunction) => {
-    const value = mycache.get(key);
-    if (value) {
-      return Promise.resolve(value);
-    }
-
-    return storeFunction().then((result) => {
-      mycache.set(key, result);
-      return result;
-    });
-  }
-
-
-
-  async function getMasternodes() {
-    return axios.get(base_url + 'masternodelist?mode=info');
-  }
-  const response = await getCacheValue('masternodes', () => {
-    return getMasternodes();
-  }).then((result) => {
-    return result
-  })
-
-  res.send({
-    data: response.data
   });
 });
 

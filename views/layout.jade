@@ -17,51 +17,31 @@ html
     script(src='/vendor/jqplot/plugins/jqplot.barRenderer.min.js')
     script(src='/vendor/jqplot/plugins/jqplot.categoryAxisRenderer.min.js')
     script(src='https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.9.0/moment.min.js')
-    script(src='//cdn.datatables.net/1.10.2/js/jquery.dataTables.min.js')  
+    script(src='//cdn.datatables.net/1.10.2/js/jquery.dataTables.min.js')
     script(src='//cdn.datatables.net/responsive/1.0.1/js/dataTables.responsive.js')
     script(src='//cdn.datatables.net/plug-ins/725b2a2115b/integration/bootstrap/3/dataTables.bootstrap.js')
     script(src='/javascripts/chart.js')
+    script(src='/javascripts/currency.js')
     script.
       $(document).ready(function(){
         $('##{active}').addClass('active');
-        function update_stats(){   
-          $.ajax({url: '/ext/summary', success: function(json){
-            $("#supply").text(json.data[0].supply);
-            $("#difficulty").text(json.data[0].difficulty);
-            $("#difficultyHybrid").text(json.data[0].difficultyHybrid);
-            $("#hashrate").text(json.data[0].hashrate);
-            $("#lastPrice").text(json.data[0].lastPrice.toFixed(8));
-            $("#lblConnections").text(json.data[0].connections + ' connections');
-            $("#lblBlockcount").text(json.data[0].blockcount + ' blocks');
-            $("#lblX1").text(' ');
-          }});
-          $.ajax({url: '/gettermdepositstats', success: function(json){
-            $("#lockedwallet").text(json.nAddress);
-            $("#lockedtx").text(json.nTimeLockedTxs);
-            $("#lockedcoin").text(json.nTotalTimeLockedValue);
-          }});
-        }
         $('.block-last-next').tooltip({
           animation: true,
-          delay: { hide: 500 },   
+          delay: { hide: 500 },
         });
-        $('.history-table').dataTable( {        
+        $('.history-table').dataTable( {
           searching: false,
           ordering: false,
           responsive: true
         });
         $('.iquidus').css('color',$('.table').css('color'));
-        $(window).resize(function () { 
+        $(window).resize(function () {
           $($.fn.dataTable.tables( true ) ).DataTable().columns.adjust();
         });
-        setInterval( function() {
-          update_stats();
-        }, 60000);
-        update_stats();
       });
   body
     - function format_unixtime(unixtime) {
-      - var a = new Date(unixtime*1000);  
+      - var a = new Date(unixtime*1000);
       - var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       - var year = a.getFullYear();
       - var month = months[a.getMonth()];
@@ -82,10 +62,10 @@ html
         - min = '0' + min
       if sec < 10
         - sec = '0' + sec
-      - var time = date + suffix + ' ' + month + ' ' + year + ' ' + hour + ':' + min + ':' + sec ;   
+      - var time = date + suffix + ' ' + month + ' ' + year + ' ' + hour + ':' + min + ':' + sec ;
       - return time
     -  };
-    .nav.navbar.navbar-default.navbar-fixed-top(role='navigation')
+    .nav.navbar.navbar-default.navbar-fixed-top(role='navigation', style='background-color: #121416;color: #353c42; font-size:14px; font-weight:bold;padding-left: 50px;')
       .container-fluid
         .navbar-header(style='float:left;')
           button.navbar-toggle(type='button', data-toggle='collapse', data-target='#navbar-collapse')
@@ -93,21 +73,23 @@ html
             span.icon-bar
             span.icon-bar
             span.icon-bar
-          a.navbar-brand(href='/') #{settings.title}
+          a.navbar-brand(href='https://sinovate.io', target='_blank')
+            img(src="/images/logo.png",)
+            
         .collapse.navbar-collapse(id='navbar-collapse' style='float:left;')
           ul.nav.navbar-nav
             li#home
-              a.navbar-link(href='/') 
+              a.navbar-link(href='/')
                 span.glyphicon.glyphicon-search
-                span.menu-text #{settings.locale.menu_explorer}
+                span.menu-text #{settings.locale.menu_dashboard}
             if settings.heavy == true
               li#reward
                 a.navbar-link(href='/reward')
                   span.fa.fa-star
                   span.menu-text #{settings.locale.menu_reward}
             if settings.display.movement == true
-              li#movement 
-                a.navbar-link.loading(href='/movement') 
+              li#movement
+                a.navbar-link.loading(href='/movement')
                   span.fa.fa-money
                   span.menu-text #{settings.locale.menu_movement}
             if settings.display.network == true
@@ -122,7 +104,7 @@ html
                   span.menu-text #{settings.locale.menu_richlist}
             if settings.display.markets == true
               li#markets
-                a.navbar-link.loading(href='/markets/#{settings.markets.default}') 
+                a.navbar-link.loading(href='/markets/#{settings.markets.default}')
                   span.fa.fa-line-chart
                   span.menu-text #{settings.locale.menu_markets}
             if settings.display.api == true
@@ -135,86 +117,19 @@ html
                 a.navbar-link(href='/pool-stats')
                   span.glyphicon.glyphicon-stats
                   span.menu-text #{settings.locale.menu_poolstats}
-            if settings.display.masternodes == true
+            if settings.display.infinitynodes == true
               li#info
-                a.navbar-link(href='/masternodes')
+                a.navbar-link(href='/infinitynodes')
                   span.glyphicon.glyphicon-list-alt
-                  span.menu-text #{settings.locale.menu_masternodes}
-        .search(style='float:right;width:34%;margin-top:5px;')
-          form.form-inline(method='post', action='/search')
-            #index-search.form-group
-              input.form-control(type='text', name='search', placeholder='#{settings.locale.ex_search_message}', style='min-width:80%;margin-right:5px;')
-              button.btn.btn-success(type='submit') #{settings.locale.ex_search_button}
-.col-md-12
-   .panel-body(style='margin-bottom:5px;')
-    .col-md-12
-      .row.text-center
-        .col-md-4
-          <script type="text/javascript" src="https://files.coinmarketcap.com/static/widget/currency.js"></script> <div class="coinmarketcap-currency-widget" data-currencyid="3514" data-base="USD"  data-secondary="BTC"></div> 
-        .col-md-4
-          .panel.panel-default.hidden-sm.hidden-xs
-            .panel-heading
-              strong #{settings.locale.network}
-            .panel-body
-              table.table.table-bordered.summary-table
-                tbody
-                  tr
-                    td
-                      if settings.nethash_units == 'K'
-                        span #{settings.locale.hashrate} (KH/s)
-                      else if settings.nethash_units == 'M'
-                        span #{settings.locale.hashrate} (MH/s)
-                      else if settings.nethash_units == 'G'
-                        span #{settings.locale.hashrate} (GH/s)
-                      else if settings.nethash_units == 'T'
-                        span #{settings.locale.hashrate} (TH/s)
-                      else if settings.nethash_units == 'P'
-                        span #{settings.locale.hashrate} (PH/s)
-                      else if settings.nethash_units == 'H'
-                        span #{settings.locale.hashrate} (H/s)
-                    td
-                      if settings.index.difficulty == 'Hybrid'
-                        span#hashrate -
-                        <br>
-                        span#lblX1
-                      else
-                        span#hashrate -
-                  tr
-                    td
-                      span #{settings.locale.difficulty}
-                    td
-                      span#difficulty -
-                  tr
-                    td
-                      span #{settings.locale.ex_supply}
-                    td
-                      span#supply -
-              <br />
-        .col-md-4
-          .panel.panel-default.hidden-sm.hidden-xs
-            .panel-heading
-              strong #{settings.locale.timelocked}
-            .panel-body
-              table.table.table-bordered.summary-table
-                tbody
-                  tr
-                    td
-                        span #{settings.locale.wallets}
-                    td
-                        span#lockedwallet -
-                  tr
-                    td
-                      span #{settings.locale.transactions}
-                    td
-                      span#lockedtx -
-                  tr
-                    td
-                      span #{settings.locale.total_locked}
-                    td
-                      span#lockedcoin -
-              <br />
+                  span.menu-text #{settings.locale.menu_infinitynodes}
+        .collapse.navbar-collapse(id='navbar-collapse' style='float:left;width:600px;padding-left: 50px')
+            .search(style='align:center;margin-top:5px;margin-bottom: 5px;')
+              form.form-inline(method='post', action='/search')
+                #index-search.form-group
+                  input.form-control(type='text', name='search', placeholder='#{settings.locale.ex_search_message}', style='min-width:80%;margin-right:5px;')
+                  button.btn.btn-success(type='submit', style='background-color:#f5332f; border: none; border-radius: 10px') #{settings.locale.ex_search_button}
     block content
-    .navbar.navbar-default.navbar-fixed-bottom.hidden-xs
+    .navbar.navbar-default.navbar-fixed-bottom.hidden-xs(style='background-color: #121416;color: #353c42; font-size:14px; font-weight:bold;padding-left: 50px;')
       .col-md-4
         if settings.display.twitter
           ul.nav.navbar-nav
@@ -236,11 +151,12 @@ html
             li.pull-left
               a#youtube-icon(href="https://www.youtube.com/channel/#{settings.youtube}", target='_blank')
                 span.glyphicon.fa.fa-youtube
-     .col-md-4
-        ul.nav
-          li.text-center(style='margin-left:80px;margin-right:80px;')
-            p(style='margin-top:15px;') 
-              a.navbar-link(href='https://github.com/iquidus/explorer', target='_blank') Powered by Iquidus Explorer 
-      span.connections
-        label#lblBlockcount.label.label-default -
-        label#lblConnections.label.label-default -
+     .col-md-1
+        block intro
+ .container
+      div(id="images")
+         center
+             img(alt="sinovate", src="/images/sinlogo.png", width="160", margin-top="0", style="text-align:middle")
+      //span.connections
+        //label#lblBlockcount.label.label-default -
+        //label#lblConnections.label.label-default -

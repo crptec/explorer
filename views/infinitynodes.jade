@@ -1,0 +1,61 @@
+extends layout
+block content
+    script.
+      $(document).ready(function(){
+        var rtable = $('#stats-table').dataTable( {
+          autoWidth: false,
+          searching: true,
+          ordering: true,
+          //responsive: true,
+          lengthChange: false,
+          //processing: true,
+          ajax: {
+            url: '/ext/nodelist',
+            dataSrc: function ( json ) {
+              const data = [];
+              console.log(json.data);
+              for (var i = 0; i < json.data.length; i++) {
+                const line = {}
+                line['address'] = json.data[i]['address'];
+                line['address'] = line['address'].substring(line['address'].length - 12, line['address'].length);
+                line['status'] = json.data[i]['status'].toUpperCase();
+                line['protocol'] = json.data[i]['protocol'];
+                line['last_seen'] = json.data[i]['last_seen']
+                line['active_time'] = json.data[i]['active_time'];
+                line['ip'] = json.data[i]['ip'];
+                line['type'] = 'Unknown';
+                if (json.data[i]['type'] == 1) { line['type'] = 'LIL'; }
+                if (json.data[i]['type'] == 5) { line['type'] = 'MID'; }
+                if (json.data[i]['type'] == 10) { line['type'] = 'BIG'; }
+                line['expire'] = json.data[i]['expire_height'];
+                line['country'] = json.data[i]['country'];
+                data.push(line)
+              }
+              return data;
+            }
+          },
+          columns: [
+            { data: 'address', width: '10%'},
+            { data: 'status', width: '25%' },
+            { data: 'protocol', width: '5%' },
+            { data: 'active_time', width: '10%' },
+            { data: 'last_seen', width: '5%' },
+            { data: 'ip', width: '20%' },
+            { data: 'type', width: '5%' },
+            { data: 'expire', width: '5%' },
+            { data: 'country', width: '5%' },
+          ]
+        });
+      });
+    .col-xs-12.col-md-10.col-md-offset-1(style="margin-bottom: 5%")
+        table#stats-table.table.table-striped.table-bordered
+            thead
+                th Address
+                th Status
+                th Protocol
+                th Active time
+                th Last seen
+                th IP
+                th Type
+                th Expire
+                th Country
